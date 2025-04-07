@@ -1,36 +1,45 @@
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer
-from pymilvus import Collection
-from pymilvus import connections
-import os
+from pymilvus import Collection, connections
 
+# Milvus 연결
 connections.connect("default", host="localhost", port="19530")
 
-# 감정 분류 모델 로드
-emotion_classifier = pipeline("text-classification", model="nateraw/bert-base-uncased-emotion")
+# 감정 분류 모델 (한국어 대응 멀티태스크 모델)
+emotion_classifier = pipeline("text-classification", model="alsgyu/sentiment-analysis-fine-tuned-model")
 
-# 벡터 임베딩 모델 로드
-embedding_model = SentenceTransformer("intfloat/multilingual-e5-base")
+# 벡터 임베딩 모델
+embedding_model = SentenceTransformer("jhgan/ko-sbert-nli")
 
 # Milvus 컬렉션 로드
-collection = Collection("spotify_music_content")
+collection = Collection("spotify_playlists")
 collection.load()
 
 def recommend_music(user_input: str):
+    # 감정 분석
     emotion_result = emotion_classifier(user_input)
-    emotion_label = emotion_result[0]['label']
+    print(f"[감정 분석 원본 출력]: {emotion_result}")  # 디버깅 출력
 
-    query_text = {
-        "sadness": "슬플 때 듣기 좋은 음악",
-        "joy": "기분 좋을 때 어울리는 음악",
-        "anger": "화날 때 진정할 수 있는 음악",
-        "fear": "불안할 때 마음을 편하게 해주는 음악",
-        "love": "사랑에 빠졌을 때 듣고 싶은 음악",
-        "surprise": "놀랐을 때 기분 전환되는 음악"
-    }.get(emotion_label, "감정에 맞는 추천 음악")
+    # 감정 라벨 처리
+    emotion_label_raw = emotion_result[0]['label'] if emotion_result else "기타"
+    emotion_label = emotion_label_raw.replace("emotion_", "") if "emotion_" in emotion_label_raw else emotion_label_raw
 
+    # 감정 기반 쿼리 강화 문장
+    emotion_queries = {
+        "슬픔": "눈물이 나는 이별 발라드",
+        "기쁨": "신나는 케이팝 댄스곡",
+        "화남": "마음을 차분하게 가라앉히는 연주곡",
+        "공포": "편안한 분위기의 치유 음악",
+        "사랑": "설레는 사랑 노래",
+        "놀람": "기분 전환되는 밝은 음악",
+        "기타": "감정을 위로하는 음악"
+    }
+
+    # 쿼리 문장 생성
+    query_text = f"{emotion_queries.get(emotion_label, '')} {user_input}"
     query_vector = embedding_model.encode(query_text, normalize_embeddings=True)
 
+    # Milvus 검색
     search_params = {"metric_type": "COSINE", "params": {"ef": 64}}
     results = collection.search(
         data=[query_vector],
@@ -39,6 +48,11 @@ def recommend_music(user_input: str):
         limit=5,
         output_fields=["id", "name", "description", "image_url"]
     )
+
+    # 디버깅용 출력
+    print(f"\n[감지된 감정] {emotion_label}")
+    for hit in results[0]:
+        print(f"- {hit.entity.get('name')} (score: {hit.distance:.4f})")
 
     return [
         {
