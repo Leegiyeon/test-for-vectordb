@@ -12,11 +12,6 @@ jobs:
       - name: 📦 소스코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: 🐳 Docker Compose로 Milvus 및 의존 서비스 실행
-        run: |
-          docker-compose -f docker/docker-compose.yml up -d
-          echo "Milvus 및 의존 서비스가 시작될 때까지 대기 중..."
-
       - name: 🐍 Python 3.10 환경 설정
         uses: actions/setup-python@v4
         with:
@@ -27,14 +22,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 🐳 docker-compose로 Milvus 등 서비스 실행
+        run: |
+          echo "📁 docker 디렉토리로 이동 후 docker-compose 실행"
+          cd docker
+          docker-compose up -d
+
+      - name: ⏳ 서비스 초기화 대기
+        run: |
+          echo "⏱ Milvus 및 관련 서비스가 시작될 때까지 대기 (60초)"
+          sleep 60
+
       - name: 🎵 샘플 데이터 삽입
         run: |
-          echo "샘플 데이터를 Milvus에 삽입합니다..."
+          echo "📥 샘플 데이터를 Milvus에 삽입합니다..."
           PYTHONPATH=. python app/db/insert_sample_data.py
 
       - name: ✅ 테스트 실행
         env:
           TOKENIZERS_PARALLELISM: false
         run: |
-          echo "테스트를 실행합니다..."
+          echo "🧪 테스트를 실행합니다..."
           PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py'
