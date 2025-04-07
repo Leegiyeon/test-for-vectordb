@@ -4,7 +4,7 @@ from pymilvus import connections, Collection
 connections.connect("default", host="localhost", port="19530")
 
 # 확인할 컬렉션 이름
-collection_name = "spotify_music_content"
+collection_name = "spotify_playlists"
 
 # 컬렉션 인스턴스 생성
 collection = Collection(collection_name)
