@@ -9,17 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      etcd:
+        image: quay.io/coreos/etcd:v3.5.5
+        ports:
+          - 2379:2379
+        options: >-
+          --health-cmd "curl -sf http://localhost:2379/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+          ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -sf http://localhost:9000/minio/health/ready || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          command: server /data
+
       milvus:
         image: milvusdb/milvus:v2.3.9
         ports:
           - 19530:19530
           - 9091:9091
         options: >-
-          --health-cmd="curl -f http://localhost:9091 || exit 1"
-          --health-interval=30s
-          --health-timeout=10s
-          --health-retries=10
-        # Milvus standalone 모드에서 필요한 환경변수 설정
+          --health-cmd "curl -f http://localhost:9091 || exit 1"
+          --health-interval 20s
+          --health-timeout 5s
+          --health-retries 15
         env:
           ETCD_ENDPOINTS: etcd:2379
           MINIO_ADDRESS: minio:9000
@@ -27,19 +53,27 @@ jobs:
           MINIO_ROOT_PASSWORD: minioadmin
 
     steps:
-      - name: 🔄 코드 체크아웃
+      - name: 📦 소스코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: 🐍 Python 3.10 설정
+      - name: 🐍 Python 3.10 환경 설정
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 의존성 설치
+      - name: 🔧 패키지 설치
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: ✅ 테스트 실행
+      - name: ⏳ Milvus 초기화 대기
         run: |
-          PYTHONPATH=. python tests/test_recommender.py
+          echo "Milvus를 초기화하는 중입니다..."
+          sleep 30
+
+      - name: ✅ 테스트 실행
+        env:
+          TOKENIZERS_PARALLELISM: false
+        run: |
+          echo "테스트를 실행합니다..."
+          PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py'
