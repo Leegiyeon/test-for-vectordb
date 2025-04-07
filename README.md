@@ -65,7 +65,7 @@ pip install -r requirements.txt
 pip install sentence-transformers==2.2.2 transformers==4.30.2 huggingface_hub==0.16.4
 ```
 
-### 3. Milvus 커리션 및 인데스 생성
+### 3. Milvus 컬렉션 및 인덱스 생성
 
 ```bash
 python app/db/milvus_schema.py
@@ -80,7 +80,7 @@ python app/db/insert_sample_data.py
 ### 5. 추천 기능 테스트
 
 ```bash
-python app/test_recommender.py
+PYTHONPATH=. python tests/test_recommender.py
 ```
 
 ---
