@@ -1,0 +1,43 @@
+name: Python CI
+
+on:
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      milvus:
+        image: milvusdb/milvus:v2.3.9
+        ports:
+          - 19530:19530
+          - 9091:9091
+        options: >-
+          --health-cmd "curl -f http://localhost:9091 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          ETCD_ENDPOINTS: localhost:2379
+          MINIO_ADDRESS: localhost:9000
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test
+        run: |
+          python -m unittest app/test_recommender.py
