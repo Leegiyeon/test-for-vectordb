@@ -25,6 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install --upgrade transformers==4.38.2 sentence-transformers==2.2.2
+          pip install huggingface_hub==0.16.4
 
       # 4. docker compose로 Milvus 등 백엔드 서비스 실행
       - name: 🐳 docker compose로 Milvus 등 서비스 실행
