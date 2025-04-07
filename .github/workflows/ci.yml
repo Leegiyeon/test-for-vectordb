@@ -1,4 +1,4 @@
-name: Python CI
+name: 🐍 Python 테스트 CI
 
 on:
   pull_request:
@@ -13,11 +13,6 @@ jobs:
         image: quay.io/coreos/etcd:v3.5.5
         ports:
           - 2379:2379
-        options: >-
-          --health-cmd "curl -sf http://localhost:2379/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
         env:
           ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
           ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
@@ -26,11 +21,6 @@ jobs:
         image: minio/minio:latest
         ports:
           - 9000:9000
-        options: >-
-          --health-cmd "curl -sf http://localhost:9000/minio/health/ready || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
@@ -66,10 +56,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: ⏳ Milvus 초기화 대기
+      - name: ⏳ Milvus 및 etcd 초기화 대기
         run: |
-          echo "Milvus를 초기화하는 중입니다..."
-          sleep 30
+          echo "Milvus 및 etcd 초기화 대기 중 (40초)..."
+          sleep 40
+
+      - name: 🎵 샘플 데이터 삽입
+        run: |
+          echo "샘플 데이터를 Milvus에 삽입합니다..."
+          PYTHONPATH=. python app/db/insert_sample_data.py
 
       - name: ✅ 테스트 실행
         env:
