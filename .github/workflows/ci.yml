@@ -22,16 +22,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🐳 docker-compose로 Milvus 등 서비스 실행
+      - name: 🐳 docker compose로 Milvus 등 서비스 실행
         run: |
-          echo "📁 docker 디렉토리로 이동 후 docker-compose 실행"
+          echo "📁 docker 디렉토리로 이동 후 docker compose 실행"
           cd docker
           docker compose up -d
+          cd ..
 
-      - name: ⏳ 서비스 초기화 대기
+      - name: ⏳ Milvus gRPC 포트가 열릴 때까지 대기
         run: |
-          echo "⏱ Milvus 및 관련 서비스가 시작될 때까지 대기 (60초)"
-          sleep 60
+          echo "⏱ Milvus 서비스가 시작될 때까지 대기 중..."
+          timeout 90 bash -c 'until echo > /dev/tcp/localhost/19530; do sleep 2; done'
+          echo "✅ Milvus가 시작되었습니다."
 
       - name: 🎵 샘플 데이터 삽입
         run: |
@@ -44,3 +46,10 @@ jobs:
         run: |
           echo "🧪 테스트를 실행합니다..."
           PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py'
+
+      - name: 🧹 docker compose 종료
+        if: always()
+        run: |
+          echo "🛑 docker 서비스 종료 및 정리"
+          cd docker
+          docker compose down
